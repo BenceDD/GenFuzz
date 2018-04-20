@@ -4,7 +4,7 @@ import yaml
 
 class MattermostRequests:
 
-    def __init__(self, credentials_json_path, api_yaml_path):
+    def __init__(self, credentials_json_path, api_yaml_path, skip_login=False):
         with open('../mattermost_credentials.json') as file:
             login_data = json.load(file)
             self.api_url = login_data['api_url']
@@ -14,13 +14,17 @@ class MattermostRequests:
         with open('mattermost-openapi-v4.yaml') as file:
             self.api_data = yaml.load(file)
 
-    def login(self, login_id=None, password=None):
-        login_id = login_id if login_id is not None else self.login_id
-        password = password if password is not None else self.password
+        self.auth_header = self.login(force_login=True) if not skip_login else None
 
-        login_data = { 'login_id': login_id, 'password': password }
-        token = requests.post(self.api_url + '/users/login', data=json.dumps(login_data)).headers['token']
-        return { 'Authorization': 'Bearer ' + token }
+    def login(self, login_id=None, password=None, force_login=False):
+        if force_login:
+            login_id = login_id if login_id is not None else self.login_id
+            password = password if password is not None else self.password
+
+            login_data = { 'login_id': login_id, 'password': password }
+            token = requests.post(self.api_url + '/users/login', data=json.dumps(login_data)).headers['token']
+            self.auth_header =  { 'Authorization': 'Bearer ' + token }
+        return self.auth_header
 
     def send_request(self, path, method, get_headers=False, **kwargs):
         api_params = self.api_data['paths'][path][method]['parameters']
@@ -47,21 +51,26 @@ class MattermostRequests:
         query_params = { param['name']: kwargs[param['name']] for param in api_params if param['in'] == 'query' and param['name'] in kwargs } or None
 
         # Set parameters header (currently only the auth header...)
-        auth_header = kwargs['auth_header'] if 'auth_header' in kwargs else None
+        auth_header = kwargs['auth_header'] if 'auth_header' in kwargs else self.auth_header
+        if auth_header is None:
+            print('Warning: No auth header is passed...')
         
         # Set body parameters
         body_params = {}
         for param in api_params:
             if param['in'] == 'body':
-                body_params.update({ name: kwargs[name] for name, _ in param['schema']['properties'].items() if name in kwargs})
+                schema = param['schema']
+
+                if '$ref' in schema:  # schema is given by reference....
+                    ref_type, ref_name = tuple(schema['$ref'].split('/')[1:])
+                    schema = self.api_data[ref_type][ref_name]
+
+                body_params.update({ name: kwargs[name] for name, _ in schema['properties'].items() if name in kwargs })
+        body_params = body_params or None        
 
         # Send requests
-        if method.lower() == 'get':
-            response = requests.get(self.api_url + url, params=query_params, headers=auth_header)
-        elif method.lower() == 'post':
-            response = requests.post(self.api_url + url, params=query_params, headers=auth_header, data=json.dumps(body_params))
-        elif method.lower() == 'put':
-            response = requests.put(self.api_url + url, params=query_params, headers=auth_header, data=json.dumps(body_params))
+        request_method = getattr(requests, method.lower())
+        response = request_method(self.api_url + url, params=query_params, headers=auth_header, data=json.dumps(body_params))
         
         # Parse result and return
         if get_headers:  
@@ -80,21 +89,55 @@ class MattermostRequests:
     def post_message_to_channel(self, auth_header, channel_id, message):
         return self.send_request('/posts', 'post', channel_id=channel_id, message=message, auth_header=auth_header)
 
-    def get_users_info(self, auth_header, **kwargs):
-        return self.send_request('/users', 'get', auth_header=auth_header, **kwargs)
+    def get_users(self, **kwargs):
+        """ Get a page of a list of users. Based on query string parameters, select users from a team,
+            channel, or select users not in a specific channel. """
+        return self.send_request('/users', 'get', **kwargs)
 
-    def get_user_info(self, auth_header, user_id):
-        return self.send_request('/users/{user_id}', 'get', user_id=user_id, auth_header=auth_header)
+    def get_user(self, **kwargs):
+        """ Get a user a object. Sensitive information will be sanitized out. """
+        return self.send_request('/users/{user_id}', 'get', **kwargs)
 
-    def update_user_info(self, auth_header, user_id, **kwargs):
-        return self.send_request('/users/{user_id}/patch', 'put', user_id=user_id, auth_header=auth_header, **kwargs)
+    def update_user(self, **kwargs):
+        """ Partially update a user by providing only the fields you want to update. Omitted fields will 
+            not be updated. The fields that can be updated are defined in the request body, all other provided 
+            fields will be ignored. """
+        return self.send_request('/users/{user_id}/patch', 'put', **kwargs)
 
-    def get_teams(self, auth_header, **kwargs):
-        return self.send_request('/teams', 'get', auth_header=auth_header, **kwargs)
+    def get_teams(self, **kwargs):
+        """ For regular users only returns open teams. Users with the "manage_system" permission will 
+            return teams regardless of type. """
+        return self.send_request('/teams', 'get', **kwargs)
 
-    def get_team(self, auth_header, team_id):
-        return self.send_request('/teams/{team_id}', 'get', team_id=team_id, auth_header=auth_header)
+    def get_team(self, **kwargs):
+        """ Get a team on the system. """
+        return self.send_request('/teams/{team_id}', 'get', **kwargs)
 
-    def update_team(self, auth_header, team_id, **kwargs):
-        return mr.send_request('/teams/{team_id}/patch', 'put', auth_header=auth_header, team_id=team_id, **kwargs)
+    def update_team(self, **kwargs):
+        """ Partially update a team by providing only the fields you want to update. Omitted fields will not 
+            be updated. The fields that can be updated are defined in the request body, all other provided 
+            fields will be ignored. """
+        return self.send_request('/teams/{team_id}/patch', 'put', **kwargs)
+
+    def get_team_members(self, **kwargs):
+        """ Get a page team members list based on query string parameters - team id, page and per page. """
+        return self.send_request('/teams/{team_id}/members', 'get', **kwargs)
+
+    def create_team(self, **kwargs):
+        """ Create a new team on the system. """
+        return self.send_request('/teams', 'post', **kwargs)
+
+    def delete_team(self, **kwargs):
+        """ Soft deletes a team, by marking the team as deleted in the database. Soft deleted teams will 
+            not be accessible in the user interface. """
+        return self.send_request('/teams/{team_id}', 'delete', **kwargs)
+
+
+    def add_user_to_team(self, **kwargs):
+        """ Add user to the team by user_id. """
+        return self.send_request('/teams/{team_id}/members', 'post', **kwargs)
+
+    def remove_user_from_team(self, **kwargs):
+        """ Delete the team member object for a user, effectively removing them from a team. """
+        return self.send_request('/teams/{team_id}/members/{user_id}', 'delete', **kwargs)
 
