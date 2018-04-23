@@ -140,4 +140,4 @@ class MattermostRequests:
     def remove_user_from_team(self, **kwargs):
         """ Delete the team member object for a user, effectively removing them from a team. """
         return self.send_request('/teams/{team_id}/members/{user_id}', 'delete', **kwargs)
-
+    
