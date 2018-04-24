@@ -85,15 +85,24 @@ class MattermostRequests:
         return re.sub('[^a-zA-Z ]+', '', name + ' ')[:-1].replace(' ', '_').lower()
 
     def __getattr__(self, name):
+        selected_methods = []  # There are multiple methods with same name but with different params.
         for path, methods in self.api_data['paths'].items():
             for method, method_params in methods.items():
                 if self.__convert_name(method_params['summary']) == name:
-                    try:  # There are multiple methods with same name but with different params.
-                        return lambda **kwargs: self.send_request(path, method, **kwargs)
-                    except:
-                        pass
+                    selected_methods.append((path, method))
+
+        if len(selected_methods) == 0:
+            raise AttributeError('There is no such method: ' + name + ' (All exceptions catched...)')
         
-        raise AttributeError('There is no such method: ' + name + ' (All exceptions catched...)')
+        def method_wrapper(**kwargs):
+            message = []
+            for path, method in selected_methods:
+                try:
+                    return self.send_request(path, method, **kwargs)
+                except Exception as e:
+                    message.append(str(e))
+            raise Exception(" OR ".join(message))
+        return method_wrapper
 
     def get_methods(self):
         methods = []
