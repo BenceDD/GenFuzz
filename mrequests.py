@@ -1,20 +1,18 @@
 import requests
 import json
-import yaml
-import re
+
+from yamlhandler import YAMLHandler
 
 class MattermostRequests:
 
     def __init__(self, credentials_json_path, api_yaml_path, skip_login=False):
-        with open('../mattermost_credentials.json') as file:
+        with open(credentials_json_path) as file:
             login_data = json.load(file)
             self.api_url = login_data['api_url']
             self.login_id = login_data['login_id']
             self.password = login_data['password']
             
-        with open('mattermost-openapi-v4.yaml') as file:
-            self.api_data = yaml.load(file)
-
+        self.handler = YAMLHandler(api_yaml_path)
         self.auth_header = self.login(force_login=True) if not skip_login else None
 
     def login(self, login_id=None, password=None, force_login=False):
@@ -28,7 +26,7 @@ class MattermostRequests:
         return self.auth_header
 
     def send_request(self, path, method, get_headers=False, **kwargs):
-        api_params = self.api_data['paths'][path][method]['parameters']
+        api_params = self.handler.get_request_params(path, method)
        
         # Check parameters
         for param in api_params:
@@ -44,7 +42,7 @@ class MattermostRequests:
                 # Query string parameters
                 if param['in'] == 'query' and 'required' in param and param['required'] is True and param['name'] not in kwargs:
                     raise Exception('Missing argument: ' + param['name'])
-
+        
         # Set query parameters
         url = path.format(**kwargs)
 
@@ -62,10 +60,10 @@ class MattermostRequests:
             if param['in'] == 'body':
                 schema = param['schema']
 
-                if '$ref' in schema:  # schema is given by reference....
-                    ref_type, ref_name = tuple(schema['$ref'].split('/')[1:])
-                    schema = self.api_data[ref_type][ref_name]
-                if schema['type'] != 'object':
+                if '$ref' in schema:
+                    raise Exception('Not implemented!')
+
+                if schema['type'] != 'object':  # TODO
                     raise Exception('Passing non object arguments are not implemented!')
 
                 body_params.update({ name: kwargs[name] for name in schema['properties'] if name in kwargs })
@@ -74,23 +72,16 @@ class MattermostRequests:
         # Send requests
         request_method = getattr(requests, method.lower())
         response = request_method(self.api_url + url, params=query_params, headers=auth_header, data=json.dumps(body_params))
-        
+
         # Parse result and return
         if get_headers:  
             return response.headers, json.loads(response.text)
         else:
             return json.loads(response.text)
-    
-    def __convert_name(self, name):
-        return re.sub('[^a-zA-Z ]+', '', name + ' ')[:-1].replace(' ', '_').lower()
 
     def __getattr__(self, name):
-        selected_methods = []  # There are multiple methods with same name but with different params.
-        for path, methods in self.api_data['paths'].items():
-            for method, method_params in methods.items():
-                if self.__convert_name(method_params['summary']) == name:
-                    selected_methods.append((path, method))
-
+        selected_methods = self.handler.get_matching_methods(name) # There are multiple methods with same name but with different params.
+        
         if len(selected_methods) == 0:
             raise AttributeError('There is no such method: ' + name + ' (All exceptions catched...)')
         
@@ -105,10 +96,5 @@ class MattermostRequests:
         return method_wrapper
 
     def get_methods(self):
-        methods = []
-        for path, http_methods in self.api_data['paths'].items():
-            for method, method_params in http_methods.items():
-                params = [p['name'] for p in method_params['parameters']] if 'parameters' in method_params else []
-                methods.append((self.__convert_name(method_params['summary']), params))
-        return sorted(methods)
+        return self.handler.get_methods()
 

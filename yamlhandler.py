@@ -59,6 +59,7 @@ class YAMLHandler:
         methods = []
         for path, method in self.api_data['paths'].items():
             for method_name, method_params in method.items():
-                methods.append((self.__convert_name(method_params['summary']), self.get_call_params(path, method_name)))
+                params = [v['name'] for v in method_params['parameters']] if 'parameters' in method_params else []
+                methods.append((self.__convert_name(method_params['summary']), params))
         return sorted(methods, key=lambda x: x[0])
 
