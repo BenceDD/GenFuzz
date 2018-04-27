@@ -83,7 +83,7 @@ class MattermostRequests:
         selected_methods = self.handler.get_matching_methods(name) # There are multiple methods with same name but with different params.
         
         if len(selected_methods) == 0:
-            raise AttributeError('There is no such method: ' + name + ' (All exceptions catched...)')
+            raise AttributeError('There is no such method: ' + name + ' (All exceptions caught...)')
         
         def method_wrapper(**kwargs):
             message = []
