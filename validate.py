@@ -47,38 +47,34 @@ def substitute_references(yaml):
     return yaml
 
 
-def validate_json(tester, good):
-    for gk in good.keys():
-        vtype = good[gk]['type']
-        print("%s => type: %s" % (gk, vtype))
-        if(gk not in tester):
-            print("\t%s missing from response!" % gk)
+def validate_json(request, response, reference):
+    for refkey in reference.keys():
+        vtype = reference[refkey]['type']
+        print("%s => type: %s" % (refkey, vtype))
+        if(refkey not in response):
+            print("\t%s missing from response!" % refkey)
             return False
+
+        type_mapping = { 'array': list, 'object': dict,  'integer': int, 'string': str, 'boolean': bool }
+        for reftype, mapped_type in type_mapping.items():
+            if vtype == reftype and type(response[refkey]) is not reftype[reftype]::
+                print("\t%s has wrong type in response, %s instead of %s" % (refkey, type(response[refkey]), vtype))
+                return False
         if vtype == 'array':
-            pass
-            # TODO
+            validate_results = []
+            for elem in response[refkey]:
+                validate_results += validate_json(elem, reference[refkey])
+            if False in validate_results:
+                return False
         # This is bad
-        if vtype == 'integer' and type(tester[gk]) is not int:
-            print("\t%s has wrong type in response, %s instead of %s" % (gk, type(tester[gk]), vtype))
-            return False
-        if vtype == 'string' and type(tester[gk]) is not str:
-            print("\t%s has wrong type in response, %s instead of %s" % (gk, type(tester[gk]), vtype))
-            return False
-        if vtype == 'boolean' and type(tester[gk]) is not bool:
-            print("\t%s has wrong type in response, %s instead of %s" % (gk, type(tester[gk]), vtype))
-            return False
-        if vtype == 'array' and type(tester[gk]) is not list:
-            print("\t%s has wrong type in response, %s instead of %s" % (gk, type(tester[gk]), vtype))
-            return False
-        if vtype == 'object' and type(tester[gk]) is not dict:
-            print("\t%s has wrong type in response, %s instead of %s" % (gk, type(tester[gk]), vtype))    
-            return False
+        elif vtype == 'object':
+            return validate_json(response[refkey], reference[refkey])
+
+        if refkey in request:
+            return request[refkey] == response[refkey]
     return True
 
-def validate_response(path, method, response, code):
-    valid_response = api_data['paths'][path][method]['responses'][code]
-    substitute_references(valid_response)
-
+def validate_response(request, response, valid_response):
     print('valid_response: %s' % valid_response)
     print("Return code: %s" % code)
     print("Description: %s" % valid_response['description'])
@@ -92,12 +88,13 @@ def validate_response(path, method, response, code):
             else:
                 print("Response ITEM incorrect!")
                 print(response)
-                print("=========================")
+                raise ValidationError("Response item incorrect!")
     else:
-        if validate_json(response, valid_response['schema']['properties']) == True:
+        if validate_json(request, response, valid_response['schema']['properties']) == True:
                 print("Response JSON is correct!")
         else:
             print("Response JSON incorrect!")
             print(response)
-
-    return valid_response
+            raise ValidationError("Response JSON incorrect!")
+        
+    return True
