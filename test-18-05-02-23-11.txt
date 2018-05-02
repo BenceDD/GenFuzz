@@ -1,0 +1,1 @@
+[Test: 3 / 3Input: {'szin': 'zold'}Output: ZOLDTeamID: []ChannelID: {'id': 'api.context.404.app_error', 'message': 'Sorry, we could not find the page.', 'detailed_error': "There doesn't appear to be an api call for the url='/api/v4/teams/[]/channels'.", 'status_code': 404}]
