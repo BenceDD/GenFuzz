@@ -57,7 +57,7 @@ def validate_json(request, response, reference):
 
         type_mapping = { 'array': list, 'object': dict,  'integer': int, 'string': str, 'boolean': bool }
         for reftype, mapped_type in type_mapping.items():
-            if vtype == reftype and type(response[refkey]) is not reftype[reftype]::
+            if vtype == reftype and type(response[refkey]) is not reftype[reftype]:
                 print("\t%s has wrong type in response, %s instead of %s" % (refkey, type(response[refkey]), vtype))
                 return False
         if vtype == 'array':
