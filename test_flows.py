@@ -217,13 +217,81 @@ class MattermostTestFlows:
         ]
     }
 
-    view_channel_flow = {
-        
-    }
+    view_channel_flow = [
+        "setup": [
+            {
+                'input_data': { 'name': 'testteamforviewchannel' + random_id(), 'display_name': 'Test team', 'type': 'O' },
+                'target': mr.create_a_team, 
+                'post_process': lambda x: { "team_id": x["id"] } 
+            }, {
+                'input_data': { 'name': 'testchannel' + random_id(), 'display_name': 'testchannel', 'type': 'O', 'team_id': '' },
+                'target': mr.create_a_channel,
+                'post_process': lambda x: { "channel_id": x["id"] } 
+            }, {
+                'input_data': { 'email': random_id() + '@viewchannel.com', 'username': 'TesztElek' + random_id(), 'password': 'Teszt' },
+                'target': mr.create_a_user,
+                'post_process': lambda x: { "user_id": x["id"] } 
+            }, {
+                'input_data': None,
+                'target': mr.add_user_to_team,
+                'post_process': None 
+            }
+        ],
+        "test": [
+            {
+                'input_data': None,
+                'target': mr.view_channel,
+                'post_process': None
+            }
+        ],
+        "teardown": [
+            {
+                'input_data': None,
+                'target': mr.deactivate_a_user_account,
+                'post_process': None 
+            }, {
+                'input_data': None,
+                'target': mr.delete_a_channel,
+                'post_process': None
+            }, {
+                'input_data': None,
+                'target': mr.delete_a_team,
+                'post_process': None 
+            }
+        ]
+    ]
 
-    create_post_flow = {
-        
-    }
+    create_post_flow = [
+        "setup": [
+            {
+                'input_data': { 'name': 'testteamforcreatepost' + random_id(), 'display_name': 'Test team', 'type': 'O' },
+                'target': mr.create_a_team, 
+                'post_process': lambda x: { "team_id": x["id"] } 
+            }, {
+                'input_data': { 'name': 'testchannel' + random_id(), 'display_name': 'testchannel', 'type': 'O', 'team_id': '' },
+                'target': mr.create_a_channel,
+                'post_process': lambda x: { "channel_id": x["id"] } 
+            }
+        ],
+        "test": [
+            {
+                'input_data': {'message': "Maximális hatékonysággal kell megtervezni a végtelen funkcionalitást."},
+                'target': mr.create_a_post,
+                'post_process': None
+            }
+        ],
+        "teardown": [
+            {
+                'input_data': None,
+                'target': mr.delete_a_channel,
+                'post_process': None
+            }, {
+                'input_data': None,
+                'target': mr.delete_a_team,
+                'post_process': None 
+            }
+        ]
+    ]
 
 
     '''NOT IMPLEMENTED
@@ -245,4 +313,3 @@ class MattermostTestFlows:
             ] },
         { 'input_data': None, 'target': mr.get_users_by_ids, 'post_process': None }
     ]
-    '''
