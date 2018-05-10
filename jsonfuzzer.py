@@ -6,7 +6,7 @@ from yamlhandler import YAMLHandler
 class JSONFuzzer:
 
     def __init__(self):
-        self.samples = None
+        self.samples = self.__read_samples()
 
     def __read_samples(self):
         parsing = "./json_for_fuzzing/test_parsing/"
@@ -39,7 +39,7 @@ class JSONFuzzer:
         return random.choice(list(dictionary))
 
     def __get_random_failing_sample(self):
-        return self.samples[random.randint(0, samples_length - 1)]
+        return self.samples[random.randint(0, len(samples) - 1)]
 
     def json_fuzzer(self, path, method_type):
         
@@ -54,9 +54,3 @@ class JSONFuzzer:
         handled_request[0][random_item] = random_sample
         
         return json.dumps(handled_request)
-
-fuzzer = JSONFuzzer()
-samples = fuzzer.__read_samples()  # ez nem fog menni, mert privát
-samples_length = len(samples)
-
-fuzzer.test_cases()
