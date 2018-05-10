@@ -2,69 +2,71 @@ import random
 import string
 
 class MattermostTestFlows:
+    def __init__(self, mister):
+        self.mr = mister
 
-
-    def random_id():
+    def random_id(self):
         return ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(10))
 
-    mr = None
+    def create_user_flow(self):
+        return {
+            "setup": [],
+            "test": [
+                { 
+                    'input_data': { 'email': 'test@test.com', 'username': 'TesztElek' + self.random_id(), 'password': 'Teszt' }, 
+                    'target': self.mr.create_a_user, 
+                    'post_process': lambda x: { "user_id": x["id"] } 
+                }
+            ],
+            "teardown": [
+                { 'target': self.mr.deactivate_a_user_account }
+            ]
+        }
 
-    create_user_flow = {
-        "setup": [],
-        "test": [
-            { 
-                'input_data': { 'email': 'test@test.com', 'username': 'TesztElek' + random_id(), 'password': 'Teszt' }, 
-                'target': mr.create_a_user, 
-                'post_process': lambda x: { "user_id": x["id"] } 
-            }
-        ],
-        "teardown": [
-            { 'target': mr.deactivate_a_user_account }
-        ]
-    }
-
-    create_team_flow = {
-        "setup": [],
-        "test": [
-            { 
-                'input_data': { 'name': 'testteam' + random_id(), 'display_name': 'Test team', 'type': 'O' }, 
-                'target': mr.create_a_team, 
-                'post_process': lambda x: { "team_id": x["id"] } 
-            }
-        ],
-        "teardown": [
-            { 
-                'input_data': None, 
-                'target': mr.delete_a_team, 
-                'post_process': None 
-            }
-        ]
-    }
-
-    update_user_flow = {
-        "setup": [
-            { 
-                'input_data': { 'email': random_id() + '@update.com', 'username': 'usertoupdate' + random_id(), 'password': 'Teszt' }, 
-                'target': mr.create_a_user, 
-                'post_process': lambda x: { "id": x["id"], "user_id": x["id"] } 
-            }
-        ],
-        "test": [
-            { 
-                'input_data': { 'first_name': 'Elek', 'last_name': 'Teszt' }, 
-                'target': mr.update_a_user, 
-                'post_process': None 
-            }
-        ],
-        "teardown": [
-            { 
-                'input_data': None, 
-                'target': mr.deactivate_a_user_account, 
-                'post_process': None 
-            }
-        ]
-    }
-
+    def create_team_flow(self):
+        return {
+            "setup": [],
+            "test": [
+                { 
+                    'input_data': { 'name': 'testteam' + self.random_id(), 'display_name': 'Test team', 'type': 'O' }, 
+                    'target': self.mr.create_a_team, 
+                    'post_process': lambda x: { "team_id": x["id"] } 
+                }
+            ],
+            "teardown": [
+                { 
+                    'input_data': None, 
+                    'target': self.mr.delete_a_team, 
+                    'post_process': None 
+                }
+            ]
+        }
+       
+    def update_user_flow(self):
+        return {
+            "setup": [
+                { 
+                    'input_data': { 'email': self.random_id() + '@update.com', 'username': 'usertoupdate' + self.random_id(), 'password': 'Teszt' }, 
+                    'target': self.mr.create_a_user, 
+                    'post_process': lambda x: { "id": x["id"], "user_id": x["id"] } 
+                }
+            ],
+            "test": [
+                { 
+                    'input_data': { 'first_name': 'Elek', 'last_name': 'Teszt' }, 
+                    'target': self.mr.update_a_user, 
+                    'post_process': None 
+                }
+            ],
+            "teardown": [
+                { 
+                    'input_data': None, 
+                    'target': self.mr.deactivate_a_user_account, 
+                    'post_process': None 
+                }
+            ]
+        }
+    """
     update_password_flow = {
         "setup": [
             { 
@@ -292,7 +294,7 @@ class MattermostTestFlows:
             }
         ]
     ]
-
+    """ 
 
     '''NOT IMPLEMENTED
     create_group_channel_flow = []
@@ -313,3 +315,4 @@ class MattermostTestFlows:
             ] },
         { 'input_data': None, 'target': mr.get_users_by_ids, 'post_process': None }
     ]
+    '''
