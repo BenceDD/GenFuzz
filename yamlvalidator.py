@@ -63,12 +63,12 @@ def validate_json(request, response, reference):
         if vtype == 'array':
             validate_results = []
             for elem in response[refkey]:
-                validate_results += validate_json(elem, reference[refkey])
+                validate_results += validate_json(request, elem, reference[refkey])
             if False in validate_results:
                 return False
         # This is bad
         elif vtype == 'object':
-            return validate_json(response[refkey], reference[refkey])
+            return validate_json(request, response[refkey], reference[refkey])
 
         if refkey in request:
             return request[refkey] == response[refkey]
@@ -82,7 +82,7 @@ def validate_response(request, response, valid_response):
     # TODO: this only iterates over the "root" result
     if 'items' in valid_response['schema'].keys():
         for item in response:
-            if validate_json(item, valid_response['schema']['items']['properties']) == True:
+            if validate_json(request, item, valid_response['schema']['items']['properties']) == True:
                 print("Response ITEM is correct!")
                 print("=========================")
             else:
