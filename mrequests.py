@@ -25,7 +25,7 @@ class MattermostRequests:
             self.auth_header =  { 'Authorization': 'Bearer ' + token }
         return self.auth_header
 
-    def send_request(self, path, method, get_headers=False, **kwargs):
+    def send_request(self, path, method, **kwargs):
         api_params = self.handler.get_request_params(path, method)
        
         # Check parameters
@@ -69,15 +69,11 @@ class MattermostRequests:
                 body_params.update({ name: kwargs[name] for name in schema['properties'] if name in kwargs })
         body_params = body_params or None        
 
-        # Send requests
-        request_method = getattr(requests, method.lower())
+        # Send request
+        request_method = getattr(requests, method.lower())  # select method
         response = request_method(self.api_url + url, params=query_params, headers=auth_header, data=json.dumps(body_params))
 
-        # Parse result and return
-        if get_headers:  
-            return response.headers, json.loads(response.text)
-        else:
-            return json.loads(response.text)
+        return (auth_header, query_params, body_params), (response.headers, json.loads(response.text))
 
     def __getattr__(self, name):
         selected_methods = self.handler.get_matching_methods(name) # There are multiple methods with same name but with different params.
