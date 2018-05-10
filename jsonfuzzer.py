@@ -4,7 +4,7 @@ import random
 from yamlhandler import YAMLHandler
 
 class JSONFuzzer:
-
+    
     def __init__(self):
         self.samples = self.__read_samples()
 
@@ -41,7 +41,7 @@ class JSONFuzzer:
     def __get_random_failing_sample(self):
         return self.samples[random.randint(0, len(samples) - 1)]
 
-    def json_fuzzer(self, path, method_type):
+    def fuzz(self, path, method_type):
         
         handler = YAMLHandler("./mattermost-openapi-v4.yaml")
         handled_request = handler.get_request_params(path, method_type)
@@ -49,7 +49,7 @@ class JSONFuzzer:
         random_item = self.__get_random_element(handled_request[0])
         random_sample = self.__get_random_failing_sample()
 
-        print('RANDOM ITEM: {0} - SAMPLE: {1}'.format(random_item, random_sample))
+        #print('RANDOM ITEM: {0} - SAMPLE: {1}'.format(random_item, random_sample))
         
         handled_request[0][random_item] = random_sample
         
